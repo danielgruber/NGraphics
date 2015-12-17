@@ -69,13 +69,13 @@ namespace NGraphics
 			AddElements (Graphic.Children, svg.Elements (), null, Brushes.Black);
 		}
 
-		void AddElements (IList<IDrawable> list, IEnumerable<XElement> es, Pen inheritPen, Brush inheritBrush)
+		void AddElements (IList<Element> list, IEnumerable<XElement> es, Pen inheritPen, Brush inheritBrush)
 		{
 			foreach (var e in es)
 				AddElement (list, e, inheritPen, inheritBrush);
 		}
 
-		void AddElement (IList<IDrawable> list, XElement e, Pen inheritPen, Brush inheritBrush)
+		void AddElement (IList<Element> list, XElement e, Pen inheritPen, Brush inheritBrush)
 		{
 			//
 			// Style
@@ -319,6 +319,12 @@ namespace NGraphics
 
 		void ApplyStyle (string style, ref Pen pen, out bool hasPen, ref Brush brush, out bool hasBrush, ref Font font)
 		{
+			var d = ParseStyle (style);
+			ApplyStyle (d, ref pen, out hasPen, ref brush, out hasBrush, ref font);
+		}
+
+		Dictionary<string, string> ParseStyle(string style)
+		{
 			var d = new Dictionary<string, string> ();
 			var kvs = style.Split (new[]{ ';' }, StringSplitOptions.RemoveEmptyEntries);
 			foreach (var kv in kvs) {
@@ -329,7 +335,7 @@ namespace NGraphics
 					d [k] = v;
 				}
 			}
-			ApplyStyle (d, ref pen, out hasPen, ref brush, out hasBrush, ref font);
+			return d;
 		}
 
 		string GetString (Dictionary<string, string> style, string name, string defaultValue = "")
