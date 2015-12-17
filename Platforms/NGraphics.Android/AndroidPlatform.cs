@@ -154,8 +154,14 @@ namespace NGraphics
 				paint.TextAlign = Paint.Align.Right;
 
 			paint.TextSize = (float)font.Size;
-			var typeface = Typeface.Create (font.Family, TypefaceStyle.Normal);
+
+			var typeface = Typeface.Create (font.Family, 
+				font.Bold ? 
+				(font.Italic ? TypefaceStyle.BoldItalic : TypefaceStyle.Bold) : 
+				(font.Italic ? TypefaceStyle.Italic : TypefaceStyle.Normal));
 			paint.SetTypeface (typeface);
+			paint.UnderlineText = font.Underline;
+			paint.StrikeThruText = font.StrokeThrough;
 
 			return paint;
 		}

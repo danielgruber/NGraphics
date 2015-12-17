@@ -269,9 +269,18 @@ namespace NGraphics
 
 			using (var atext = new NSMutableAttributedString (text)) {
 
+				var ctfont = font.GetCTFont ();
+				if (font.Bold) {
+					ctfont = ctfont.WithSymbolicTraits ((nfloat)font.Size, CTFontSymbolicTraits.Bold, CTFontSymbolicTraits.Bold);
+				}
+				if (font.Italic) {
+					ctfont = ctfont.WithSymbolicTraits ((nfloat)font.Size, CTFontSymbolicTraits.Italic, CTFontSymbolicTraits.Italic);
+				}
+
 				atext.AddAttributes (new CTStringAttributes {
 					ForegroundColorFromContext = true,
 					Font = font.GetCTFont (),
+					UnderlineStyle = font.Underline ? CTUnderlineStyle.Single : CTUnderlineStyle.None
 				}, new NSRange (0, text.Length));
 
 				using (var l = new CTLine (atext)) {
@@ -296,8 +305,26 @@ namespace NGraphics
 					context.TextPosition = CGPoint.Empty;
 					l.Draw (context);
 					context.RestoreState ();
+
+					if (font.StrokeThrough) {
+						var bounds = l.GetBounds (CTLineBoundsOptions.UseOpticalBounds);
+						nfloat topPosition = (nfloat) (bounds.Top + pt.Y);
+						nfloat xStart = (nfloat)(bounds.Left + pt.X);
+						nfloat xEnd = (nfloat)(bounds.Right + pt.X);
+						DrawLine (xStart, topPosition, xEnd, topPosition);
+					}
 				}
 			}
+		}
+
+		void DrawLine(nfloat xStart, nfloat yStart, nfloat xEnd, nfloat yEnd) {
+			context.SaveState ();
+
+			context.MoveTo (xStart, yStart);
+			context.AddLineToPoint(xEnd, yEnd);
+			context.StrokePath ();
+
+			context.RestoreState ();
 		}
 
 		void DrawElement (Func<Rect> add, Pen pen = null, Brush brush = null)
