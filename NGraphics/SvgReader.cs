@@ -69,13 +69,13 @@ namespace NGraphics
 			AddElements (Graphic.Children, svg.Elements (), null, Brushes.Black);
 		}
 
-		void AddElements (IList<Element> list, IEnumerable<XElement> es, Pen inheritPen, Brush inheritBrush)
+		void AddElements (IList<IDrawable> list, IEnumerable<XElement> es, Pen inheritPen, Brush inheritBrush)
 		{
 			foreach (var e in es)
 				AddElement (list, e, inheritPen, inheritBrush);
 		}
 
-		void AddElement (IList<Element> list, XElement e, Pen inheritPen, Brush inheritBrush)
+		void AddElement (IList<IDrawable> list, XElement e, Pen inheritPen, Brush inheritBrush)
 		{
 			//
 			// Style
@@ -83,11 +83,12 @@ namespace NGraphics
 			Element r = null;
 			Pen pen = null;
 			Brush brush = null;
+			var font = new Font ();
 			bool hasPen, hasBrush;
-			ApplyStyle (e.Attributes ().ToDictionary (k => k.Name.LocalName, v => v.Value), ref pen, out hasPen, ref brush, out hasBrush);
+			ApplyStyle (e.Attributes ().ToDictionary (k => k.Name.LocalName, v => v.Value), ref pen, out hasPen, ref brush, out hasBrush, ref font);
 			var style = ReadString (e.Attribute ("style"));
 			if (!string.IsNullOrWhiteSpace (style)) {
-				ApplyStyle (style, ref pen, out hasPen, ref brush, out hasBrush);
+				ApplyStyle (style, ref pen, out hasPen, ref brush, out hasBrush, ref font);
 			}
 			pen = hasPen ? pen : inheritPen;
 			brush = hasBrush ? brush : inheritBrush;
@@ -97,20 +98,10 @@ namespace NGraphics
 			// Elements
 			//
 			switch (e.Name.LocalName) {
+			case "tspan":
 			case "text":
 				{
-					var x = ReadNumber (e.Attribute ("x"));
-					var y = ReadNumber (e.Attribute ("y"));
-					var text = e.Value.Trim ();
-					var font = new Font ();
-					var fontFamily = ReadTextFontFamily(e);
-					if (!string.IsNullOrEmpty(fontFamily))
-						font.Family = fontFamily;
-					var fontSize = ReadTextFontSize(e);
-					if (fontSize >= 0)
-						font.Size = fontSize;
-					TextAlignment textAlignment = ReadTextAlignment(e);
-					r = new Text (text, new Rect (new Point (x, y), new Size (double.MaxValue, double.MaxValue)), font, textAlignment, pen, brush);
+					r = ParseText (e, pen, brush, font);
 				}
 				break;
 			case "rect":
@@ -119,12 +110,7 @@ namespace NGraphics
 					var y = ReadNumber (e.Attribute ("y"));
 					var width = ReadNumber (e.Attribute ("width"));
 					var height = ReadNumber (e.Attribute ("height"));
-					var rx = ReadNumber (e.Attribute ("rx"));
-					var ry = ReadNumber (e.Attribute ("ry"));
-					if (ry == 0) {
-						ry = rx;
-					}
-					r = new Rectangle (new Rect (new Point (x, y), new Size (width, height)), new Size (rx, ry), pen, brush);
+					r = new Rectangle (new Point (x, y), new Size (width, height), pen, brush);
 				}
 				break;
 			case "ellipse":
@@ -279,15 +265,59 @@ namespace NGraphics
 			}
 		}
 
-		Regex keyValueRe = new Regex (@"\s*([\w-]+)\s*:\s*(.*)");
-
-		void ApplyStyle (string style, ref Pen pen, out bool hasPen, ref Brush brush, out bool hasBrush)
+		Element ParseText (XElement e, Pen pen, Brush brush, Font inheritFont, double inheritX = 0, double inheritY = 0)
 		{
-			var d = ParseStyle(style);
-			ApplyStyle (d, ref pen, out hasPen, ref brush, out hasBrush);
+			var font = new Font ();
+			font.Family = inheritFont.Family;
+			font.Size = inheritFont.Size;
+			font.Bold = inheritFont.Bold;
+			font.Italic = inheritFont.Italic;
+			font.Underline = inheritFont.Underline;
+			font.StrokeThrough = font.StrokeThrough;
+
+			bool temp = false;
+			var style = ReadString (e.Attribute ("style"));
+			if (!string.IsNullOrWhiteSpace (style)) {
+				ApplyStyle (style, ref pen, out temp, ref brush, out temp, ref font);
+			}
+
+			var x = e.Attribute ("x") != null ? ReadNumber (e.Attribute ("x")) : inheritX;
+			var y = e.Attribute ("y") != null ? ReadNumber (e.Attribute ("y")) : inheritY;
+			var text = e.Value.Trim ();
+			var attr = e.Attributes ();
+			var fontFamilyAttribute = e.Attribute ("font-family");
+			if (fontFamilyAttribute != null)
+				font.Family = fontFamilyAttribute.Value.Trim ('\'');
+			var fontSizeAttribute = e.Attribute ("font-size");
+			if (fontSizeAttribute != null)
+				font.Size = ReadNumber (fontSizeAttribute.Value);
+
+			if (e.Attribute ("dx") != null) {
+				x += ReadNumber (e.Attribute ("dx"));
+			}
+
+			if (e.Attribute ("dy") != null) {
+				y += ReadNumber (e.Attribute ("dy"));
+			}
+
+			if (e.HasElements) {
+				var g = new Group ();
+				double dy = y;
+				foreach (var element in e.Elements()) {
+					g.Children.Add (ParseText (element, pen, brush, font, x, dy));
+					if (element.Attribute ("dy") != null) {
+						dy += ReadNumber (element.Attribute ("dy"));
+					}
+				}
+				return g;
+			} else {
+				return new Text (text, new Rect (new Point (x, y), new Size (double.MaxValue, double.MaxValue)), font, TextAlignment.Left, pen, brush);
+			}
 		}
 
-		Dictionary<string, string> ParseStyle(string style)
+		Regex keyValueRe = new Regex (@"\s*(\w+)\s*:\s*(.*)");
+
+		void ApplyStyle (string style, ref Pen pen, out bool hasPen, ref Brush brush, out bool hasBrush, ref Font font)
 		{
 			var d = new Dictionary<string, string> ();
 			var kvs = style.Split (new[]{ ';' }, StringSplitOptions.RemoveEmptyEntries);
@@ -299,7 +329,7 @@ namespace NGraphics
 					d [k] = v;
 				}
 			}
-			return d;
+			ApplyStyle (d, ref pen, out hasPen, ref brush, out hasBrush, ref font);
 		}
 
 		string GetString (Dictionary<string, string> style, string name, string defaultValue = "")
@@ -312,7 +342,7 @@ namespace NGraphics
 
 		Regex fillUrlRe = new Regex (@"url\s*\(\s*#([^\)]+)\)");
 
-		void ApplyStyle (Dictionary<string, string> style, ref Pen pen, out bool hasPen, ref Brush brush, out bool hasBrush)
+		void ApplyStyle (Dictionary<string, string> style, ref Pen pen, out bool hasPen, ref Brush brush, out bool hasBrush, ref Font font)
 		{
 			//
 			// Pen attributes
@@ -397,6 +427,54 @@ namespace NGraphics
 					} else {
 						throw new NotSupportedException ("Fill " + fill);
 					}
+				}
+			}
+
+			var fontSize = GetString (style, "size").Trim();
+			if (!string.IsNullOrEmpty (fontSize)) {
+				if (fontSize.EndsWith ("px")) {
+					font.Size = Double.Parse (fontSize.Substring(0, fontSize.Length - 2));
+				} else {
+					throw new NotSupportedException ("Font-Size: " + fontSize);
+				}
+			}
+
+			var fontFamily = GetString (style, "family").Trim();
+			if (!string.IsNullOrEmpty (fontFamily)) {
+				if (fontFamily.IndexOf (",") != -1) {
+					var family = fontFamily.Substring (0, fontFamily.IndexOf (","));
+					font.Family = family;
+				} else {
+					font.Family = fontFamily;
+				}
+			}
+
+			var fontWeight = GetString (style, "weight").Trim();
+			if (!string.IsNullOrEmpty (fontWeight)) {
+				if (fontWeight.ToLower().Equals ("bold")) {
+					font.Bold = true;
+				} else {
+					font.Bold = false;
+				}
+			}
+
+			var fontStyle = GetString (style, "style").Trim();
+			if (!string.IsNullOrEmpty (fontStyle)) {
+				if (fontStyle.ToLower().Equals ("italic")) {
+					font.Italic = true;
+				} else {
+					font.Italic = false;
+				}
+			}
+
+			var textDecoration = GetString (style, "decoration").Trim();
+			if (!string.IsNullOrEmpty (textDecoration)) {
+				if (textDecoration.ToLower ().Equals ("underline")) {
+					font.Underline = true;
+				} else if (textDecoration.ToLower ().Equals ("line-through")) {
+					font.StrokeThrough = true;
+				} else if(textDecoration.ToLower().Equals("none")) {
+					font.Underline = font.StrokeThrough = false;
 				}
 			}
 		}

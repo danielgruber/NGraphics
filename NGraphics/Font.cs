@@ -5,6 +5,10 @@ namespace NGraphics
 	public class Font
 	{
 		string name = "Georgia";
+		bool bold = false;
+		bool italic = false;
+		bool underline = false;
+		bool strokeThrough = false;
 
 		public Font ()
 		{
@@ -26,6 +30,42 @@ namespace NGraphics
 		public override int GetHashCode ()
 		{
 			return Name.GetHashCode () * 3 + 11 * Size.GetHashCode ();
+		}
+
+		public bool Bold {
+			get {
+				return this.bold;
+			}
+			set {
+				bold = value;
+			}
+		}
+
+		public bool Italic {
+			get {
+				return this.italic;
+			}
+			set {
+				italic = value;
+			}
+		}
+
+		public bool Underline {
+			get {
+				return this.underline;
+			}
+			set {
+				underline = value;
+			}
+		}
+
+		public bool StrokeThrough {
+			get {
+				return this.strokeThrough;
+			}
+			set {
+				strokeThrough = value;
+			}
 		}
 
 		public string Name { get { return name; } set { name = value; } }
@@ -51,4 +91,3 @@ namespace NGraphics
 		Right
 	}
 }
-

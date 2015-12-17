@@ -371,7 +371,6 @@ namespace NGraphics
 		public static readonly Color Red = new Color (1, 0, 0, 1);
 		public static readonly Color Orange = new Color (1, 0xA5/255.0, 0, 1);
 		public static readonly Color Yellow = new Color (1, 1, 0, 1);
-		public static readonly Color Green = new Color (0, 1, 0, 1);
 		public static readonly Color Blue = new Color (0, 0, 1, 1);
 
 		static readonly Dictionary<string, Color> names = new Dictionary<string, Color> ();
@@ -384,6 +383,12 @@ namespace NGraphics
 			names ["clear"] = Colors.Clear;
 			names ["red"] = Colors.Red;
 			names ["orange"] = Colors.Orange;
+			names ["blue"] = Colors.Blue;
+			names ["green"] = Colors.Green;
+			names ["yellow"] = Colors.Yellow;
+			names ["gray"] = Colors.Gray;
+			names ["lightgray"] = Colors.LightGray;
+			names ["darkgray"] = Colors.DarkGray;
 		}
 
 		public static bool TryParse (string colorString, out Color color)
